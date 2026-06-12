@@ -36,8 +36,6 @@ docker compose up --build -d
 
 HTTP communication. Go and Python services speak plain HTTP inside Docker.
 
-**Dashboard auth** uses server-side sessions (`hp_session` cookie). Set `STRICT_PRODUCTION=true` and change all default passwords before a real deployment — enforced at startup by **both** Python services (`shared/production_check.py`) and Go honeypots (`services/shared/runtime/production.go`).
-
 **Simulate attacks:**
 
 ```bash
