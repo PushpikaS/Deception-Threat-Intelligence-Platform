@@ -150,7 +150,7 @@ Events appear on the dashboard within ~2 seconds (engine polls every 2s).
 | `threat-ingest` | Python | Redis stream → postgres-events | Never |
 | `threat-engine` | Python | Classify events → postgres-intel | Never |
 | `threat-api` | Python/FastAPI | REST API for dashboard | Via dashboard nginx only |
-| `frontend` | React | Analyst UI (10s refresh + live WebSocket) | Via dashboard nginx only |
+| `frontend` | React | Analyst UI (refresh + live WebSocket) | Via dashboard nginx only |
 | `postgres-events` | PostgreSQL 16 | Raw honeypot events only | Internal only |
 | `postgres-intel` | PostgreSQL 16 | Profiles, classifications, chains | Internal only |
 | `redis-events` | Redis 7 | Event bus stream | Internal only |
