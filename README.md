@@ -1,4 +1,4 @@
-# HoneyPot+ Threat Intelligence Platform
+# Deception-Based Threat Intelligence Platform
 
 A **security deception and threat intelligence platform**. It pretends to be a real company website (login pages, admin panels, APIs) to attract and study attackers, then turns every probe into structured intelligence you can view on a private analyst dashboard.
 
