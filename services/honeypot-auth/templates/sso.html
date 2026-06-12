@@ -1,0 +1,39 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SSO - {{PROVIDER}}</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f4f6f8;min-height:100vh;display:flex;align-items:center;justify-content:center;margin:0}
+.card{background:#fff;border-radius:8px;padding:36px;width:400px;box-shadow:0 4px 24px rgba(0,0,0,.08);border:1px solid #e2e8f0}
+.brand{font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+h1{font-size:20px;color:#0f172a;margin-bottom:6px}
+p{color:#64748b;font-size:14px;margin-bottom:20px}
+input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:14px;font-size:14px}
+button{width:100%;padding:12px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer}
+.err{color:#dc2626;font-size:13px;display:none;margin-bottom:12px}
+.hint{font-size:12px;color:#94a3b8;margin-top:16px;text-align:center}
+</style>
+</head>
+<body>
+<div class="card">
+<div class="brand">AcmeCorp | {{PROVIDER}} SSO</div>
+<h1>Sign in with your organization</h1>
+<p>You'll be redirected to your identity provider to complete authentication.</p>
+<div class="err" id="err">SSO session expired. Try again.</div>
+<input id="email" type="email" placeholder="Work email" autocomplete="username">
+<button id="go">Continue with {{PROVIDER}}</button>
+<p class="hint"><a href="/login">Back to password login</a></p>
+</div>
+<script>
+document.getElementById('go').onclick=async()=>{
+const email=document.getElementById('email').value.trim();
+if(!email.includes('@')){document.getElementById('err').textContent='Enter a valid work email';document.getElementById('err').style.display='block';return}
+const res=await fetch('/auth/oauth/callback?provider={{PROVIDER}}&client_id=acme-sso-cli&email='+encodeURIComponent(email)+'&state=sso_'+Date.now());
+if(res.ok){window.location='/login/mfa';return}
+document.getElementById('err').style.display='block';
+};
+</script>
+</body>
+</html>

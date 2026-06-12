@@ -1,0 +1,65 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AcmeCorp Login</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.card{background:#fff;border-radius:16px;padding:40px 44px;width:420px;box-shadow:0 25px 50px rgba(0,0,0,.3)}
+.logo{text-align:center;margin-bottom:20px}
+.logo h1{font-size:28px;color:#0f172a;font-weight:700}
+.instruction{text-align:center;color:#334155;font-size:15px;font-weight:500;margin-bottom:28px;line-height:1.5}
+.instruction span{color:#64748b;font-weight:400;font-size:13px;display:block;margin-top:6px}
+label{display:block;font-size:13px;font-weight:500;color:#334155;margin-bottom:6px}
+input{width:100%;padding:12px 16px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;margin-bottom:18px}
+input:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+button{width:100%;padding:14px;background:#2563eb;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer}
+button:hover{background:#1d4ed8}
+button:disabled{opacity:.6;cursor:wait}
+.footer{text-align:center;margin-top:24px;font-size:13px;color:#64748b}
+.footer a{color:#2563eb;text-decoration:none}
+.error{color:#dc2626;font-size:13px;margin-bottom:16px;display:none;text-align:center}
+</style>
+</head>
+<body>
+<div class="card">
+<div class="logo"><h1>{{TENANT_NAME}}</h1></div>
+<p class="instruction">Sign in with your organization account</p>
+<div class="error" id="err">Invalid email or password.</div>
+<form id="loginForm">
+<label for="email">Work email</label>
+<input type="email" id="email" name="email" placeholder="name@company.com" required autocomplete="username">
+<label for="password">Password</label>
+<input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
+<button type="submit" id="btn">Sign In</button>
+</form>
+<div class="footer"><a href="/forgot-password">Forgot password?</a> | <a href="/login/sso?provider=okta">SSO Login</a></div>
+</div>
+<script>
+const redirect='{{REDIRECT}}';
+const form=document.getElementById('loginForm');
+const btn=document.getElementById('btn');
+const errEl=document.getElementById('err');
+function showErr(msg){errEl.textContent=msg;errEl.style.display='block'}
+form.addEventListener('submit',async(e)=>{
+e.preventDefault();
+if(btn.disabled)return;
+const email=document.getElementById('email').value.trim().toLowerCase();
+const password=document.getElementById('password').value;
+if(!email||!password){showErr('Invalid email or password.');return}
+btn.disabled=true;
+errEl.style.display='none';
+try{
+const res=await fetch('/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({email,password})});
+const data=await res.json().catch(()=>({}));
+if(res.ok&&data.mfa_required){window.location='/login/mfa?redirect='+encodeURIComponent(redirect);return}
+showErr('Invalid email or password.');
+btn.disabled=false;
+}catch(err){showErr('Login failed - check your connection and try again.');btn.disabled=false}
+});
+</script>
+</body>
+</html>

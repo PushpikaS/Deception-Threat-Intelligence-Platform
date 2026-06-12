@@ -1,0 +1,30 @@
+﻿<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Employee Access - AcmeCorp</title>
+<style>body{font-family:system-ui;background:#f8fafc;min-height:100vh;display:flex;align-items:center;justify-content:center;margin:0}
+.card{background:#fff;padding:40px;border-radius:12px;width:420px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+input{width:100%;padding:12px;margin:10px 0 16px;border:1px solid #cbd5e1;border-radius:8px}
+button{width:100%;padding:12px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer}
+.err{color:#dc2626;font-size:13px;display:none;margin-bottom:12px}
+.ok{color:#166534;background:#dcfce7;padding:10px;border-radius:8px;display:none;font-size:14px;margin-bottom:12px}
+.note{font-size:12px;color:#64748b;background:#f1f5f9;padding:10px;border-radius:8px;margin-bottom:14px}
+a{color:#2563eb}</style></head><body><div class="card">
+<h2>Employee access only</h2>
+<p class="note">Access is limited to invited users.</p>
+<div class="err" id="err"></div><div class="ok" id="ok"></div>
+<input id="email" type="email" placeholder="Work email">
+<input id="invite" placeholder="Invite code">
+<button id="submit">Continue</button>
+<p style="margin-top:16px;font-size:14px"><a href="/login">Employee sign in</a> | <a href="/login/sso">SSO</a></p>
+</div><script>
+document.getElementById('submit').onclick=async()=>{
+const email=document.getElementById('email').value.trim();
+const invite=document.getElementById('invite').value.trim();
+document.getElementById('err').style.display='none';document.getElementById('ok').style.display='none';
+if(!email.includes('@')){document.getElementById('err').textContent='Enter a valid work email';document.getElementById('err').style.display='block';return}
+const res=await fetch('/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({email,invite_code:invite})});
+const data=await res.json().catch(()=>({}));
+if(res.status===201){document.getElementById('ok').textContent=data.message||'Limited access granted.';document.getElementById('ok').style.display='block';setTimeout(()=>location.href='/storage/',1800);return}
+document.getElementById('err').textContent=data.message||data.error||'Access denied.';document.getElementById('err').style.display='block';
+};
+</script></body></html>

@@ -1,0 +1,282 @@
+services:
+  postgres-events:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-honeypot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-honeypot_secret}
+      POSTGRES_DB: ${EVENTS_DB:-honeypot_events}
+    volumes:
+      - postgres_events_data:/var/lib/postgresql/data
+      - ./db/events/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-honeypot} -d ${EVENTS_DB:-honeypot_events}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - honeynet
+
+  postgres-intel:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-honeypot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-honeypot_secret}
+      POSTGRES_DB: ${INTEL_DB:-threat_intel}
+    volumes:
+      - postgres_intel_data:/var/lib/postgresql/data
+      - ./db/intel/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-honeypot} -d ${INTEL_DB:-threat_intel}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - honeynet
+
+  redis-events:
+    image: redis:7-alpine
+    command: >
+      redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-changeme_redis_local}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_redis_local}
+    volumes:
+      - redis_events_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - honeynet
+
+  redis-defense:
+    image: redis:7-alpine
+    command: >
+      redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-changeme_redis_local}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_redis_local}
+    volumes:
+      - redis_defense_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - honeynet
+
+  redis-platform:
+    image: redis:7-alpine
+    command: >
+      redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-changeme_redis_local}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_redis_local}
+    volumes:
+      - redis_platform_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - honeynet
+
+  honeypot-web:
+    build:
+      context: ./services
+      dockerfile: honeypot-web/Dockerfile
+    environment:
+      SERVICE_NAME: honeypot-web
+      STRICT_PRODUCTION: ${STRICT_PRODUCTION:-false}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_redis_local}
+      REDIS_EVENTS_URL: redis://:${REDIS_PASSWORD:-changeme_redis_local}@redis-events:6379/0
+      REDIS_DEFENSE_URL: redis://:${REDIS_PASSWORD:-changeme_redis_local}@redis-defense:6379/0
+      PORT: "8080"
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    depends_on:
+      redis-events:
+        condition: service_healthy
+      redis-defense:
+        condition: service_healthy
+    networks:
+      - honeynet
+
+  honeypot-api:
+    build:
+      context: ./services
+      dockerfile: honeypot-api/Dockerfile
+    environment:
+      SERVICE_NAME: honeypot-api
+      STRICT_PRODUCTION: ${STRICT_PRODUCTION:-false}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_redis_local}
+      REDIS_EVENTS_URL: redis://:${REDIS_PASSWORD:-changeme_redis_local}@redis-events:6379/0
+      REDIS_DEFENSE_URL: redis://:${REDIS_PASSWORD:-changeme_redis_local}@redis-defense:6379/0
+      PORT: "8081"
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    depends_on:
+      redis-events:
+        condition: service_healthy
+      redis-defense:
+        condition: service_healthy
+    networks:
+      - honeynet
+
+  honeypot-auth:
+    build:
+      context: ./services
+      dockerfile: honeypot-auth/Dockerfile
+    environment:
+      SERVICE_NAME: honeypot-auth
+      STRICT_PRODUCTION: ${STRICT_PRODUCTION:-false}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_redis_local}
+      REDIS_EVENTS_URL: redis://:${REDIS_PASSWORD:-changeme_redis_local}@redis-events:6379/0
+      REDIS_DEFENSE_URL: redis://:${REDIS_PASSWORD:-changeme_redis_local}@redis-defense:6379/0
+      PORT: "8082"
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    depends_on:
+      redis-events:
+        condition: service_healthy
+      redis-defense:
+        condition: service_healthy
+    networks:
+      - honeynet
+
+  threat-ingest:
+    build:
+      context: .
+      dockerfile: threat-ingest/Dockerfile
+    environment:
+      EVENTS_DATABASE_URL: postgres://${POSTGRES_USER:-honeypot}:${POSTGRES_PASSWORD:-honeypot_secret}@postgres-events:5432/${EVENTS_DB:-honeypot_events}
+      REDIS_EVENTS_URL: redis://:${REDIS_PASSWORD:-changeme_redis_local}@redis-events:6379/0
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-honeypot_secret}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_redis_local}
+      BATCH_SIZE: ${BATCH_SIZE:-100}
+      POLL_INTERVAL: ${POLL_INTERVAL:-1}
+      STRICT_PRODUCTION: ${STRICT_PRODUCTION:-false}
+    depends_on:
+      postgres-events:
+        condition: service_healthy
+      redis-events:
+        condition: service_healthy
+    networks:
+      - honeynet
+
+  threat-engine:
+    build:
+      context: .
+      dockerfile: threat-engine/Dockerfile
+    environment:
+      EVENTS_DATABASE_URL: postgres://${POSTGRES_USER:-honeypot}:${POSTGRES_PASSWORD:-honeypot_secret}@postgres-events:5432/${EVENTS_DB:-honeypot_events}
+      INTEL_DATABASE_URL: postgres://${POSTGRES_USER:-honeypot}:${POSTGRES_PASSWORD:-honeypot_secret}@postgres-intel:5432/${INTEL_DB:-threat_intel}
+      REDIS_PLATFORM_URL: redis://:${REDIS_PASSWORD:-changeme_redis_local}@redis-platform:6379/0
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-honeypot_secret}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_redis_local}
+      POLL_INTERVAL: ${POLL_INTERVAL:-2}
+      BATCH_SIZE: ${BATCH_SIZE:-100}
+      CACHE_TTL: ${CACHE_TTL:-30}
+      GEOIP_CITY_PATH: /data/geoip/GeoLite2-City.mmdb
+      GEOIP_ASN_PATH: /data/geoip/GeoLite2-ASN.mmdb
+      GEOIP_HTTP_FALLBACK: ${GEOIP_HTTP_FALLBACK:-true}
+      GEOIP_CACHE_TTL: ${GEOIP_CACHE_TTL:-86400}
+
+      STRICT_PRODUCTION: ${STRICT_PRODUCTION:-false}
+    volumes:
+      - ./data/geoip:/data/geoip:ro
+    depends_on:
+      postgres-events:
+        condition: service_healthy
+      postgres-intel:
+        condition: service_healthy
+      redis-platform:
+        condition: service_healthy
+      threat-ingest:
+        condition: service_started
+    networks:
+      - honeynet
+
+  threat-api:
+    build:
+      context: .
+      dockerfile: threat-api/Dockerfile
+    environment:
+      EVENTS_DATABASE_URL: postgres://${POSTGRES_USER:-honeypot}:${POSTGRES_PASSWORD:-honeypot_secret}@postgres-events:5432/${EVENTS_DB:-honeypot_events}
+      INTEL_DATABASE_URL: postgres://${POSTGRES_USER:-honeypot}:${POSTGRES_PASSWORD:-honeypot_secret}@postgres-intel:5432/${INTEL_DB:-threat_intel}
+      REDIS_PLATFORM_URL: redis://:${REDIS_PASSWORD:-changeme_redis_local}@redis-platform:6379/0
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-honeypot_secret}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-changeme_redis_local}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:9090}
+      CACHE_TTL: ${CACHE_TTL:-30}
+      REQUIRE_DASHBOARD_AUTH: ${REQUIRE_DASHBOARD_AUTH:-true}
+      DASHBOARD_AUTH_USER: ${DASHBOARD_AUTH_USER:-analyst}
+      DASHBOARD_AUTH_PASS: ${DASHBOARD_AUTH_PASS:-changeme_local_only}
+      DASHBOARD_SESSION_TTL: ${DASHBOARD_SESSION_TTL:-28800}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
+      STRICT_PRODUCTION: ${STRICT_PRODUCTION:-false}
+    depends_on:
+      postgres-events:
+        condition: service_healthy
+      postgres-intel:
+        condition: service_healthy
+      redis-platform:
+        condition: service_healthy
+    networks:
+      - honeynet
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-/api}
+    networks:
+      - honeynet
+
+  nginx-honeypot:
+    image: nginx:1.27-alpine
+    ports:
+      - "${HONEYPOT_PORT:-8080}:80"
+    volumes:
+      - ./nginx/honeypot.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/honeypot-locations.conf:/etc/nginx/honeypot-locations.conf:ro
+    depends_on:
+      - honeypot-web
+      - honeypot-api
+      - honeypot-auth
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/nginx-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - honeynet
+
+  nginx-dashboard:
+    image: nginx:1.27-alpine
+    ports:
+      - "${DASHBOARD_PORT:-9090}:80"
+    volumes:
+      - ./nginx/dashboard.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/dashboard-locations.conf:/etc/nginx/dashboard-locations.conf:ro
+    depends_on:
+      - frontend
+      - threat-api
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/nginx-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - honeynet
+
+volumes:
+  postgres_events_data:
+  postgres_intel_data:
+  redis_events_data:
+  redis_defense_data:
+  redis_platform_data:
+
+networks:
+  honeynet:
+    driver: bridge

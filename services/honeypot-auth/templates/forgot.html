@@ -1,0 +1,24 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Reset Password - AcmeCorp</title>
+<style>
+body{font-family:system-ui;background:#f8fafc;min-height:100vh;display:flex;align-items:center;justify-content:center;margin:0}
+.card{background:#fff;padding:40px;border-radius:12px;width:400px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+input{width:100%;padding:12px;margin:12px 0 20px;border:1px solid #cbd5e1;border-radius:8px}
+button{width:100%;padding:12px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer}
+.msg{display:none;color:#166534;background:#dcfce7;padding:10px;border-radius:8px;margin-bottom:12px;font-size:14px}
+a{color:#2563eb}
+</style>
+</head>
+<body>
+<div class="card">
+<h2>Reset your password</h2>
+<div class="msg" id="msg">If the account exists, a reset link has been sent.</div>
+<input id="email" type="email" placeholder="Work email">
+<button onclick="fetch('/auth/forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('email').value})}).then(()=>document.getElementById('msg').style.display='block')">Send reset link</button>
+<p style="margin-top:16px;font-size:14px"><a href="/login">Back to sign in</a></p>
+</div>
+</body>
+</html>

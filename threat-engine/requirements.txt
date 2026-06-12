@@ -1,0 +1,4 @@
+asyncpg==0.30.0
+redis[hiredis]==5.2.1
+geoip2==4.8.1
+maxminddb==2.6.2
