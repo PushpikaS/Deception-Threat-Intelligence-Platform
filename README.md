@@ -31,7 +31,7 @@ docker compose up --build -d
 
 | Surface | HTTP (use this) | Who uses it |
 |---------|-----------------|-------------|
-| **Honeypot** (public deception) | `http://localhost:8080` | Attackers, scanners, red team |
+| **Honeypot** (public deception) | `http://localhost:8080/login` | Attackers, scanners, red team |
 | **Dashboard** (private intel) | `http://localhost:9090` | Security analysts |
 
 HTTP communication. Go and Python services speak plain HTTP inside Docker.
